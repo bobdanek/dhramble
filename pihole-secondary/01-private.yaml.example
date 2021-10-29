@@ -1,0 +1,26 @@
+# Put sensitive stuff in here that you don't want showing up on your github
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pihole-custom
+  namespace: pihole-2
+data:
+  custom.list: |
+    10.0.1.1 router.example.com
+    10.0.1.2 xbox.example.com
+    10.0.1.3 nas.example.com
+    10.0.1.4 desktop-pc.example.com
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pihole-setupvars
+  namespace: pihole-2
+data:
+  WEBPASSWORD: "correct horse battery staple"
+  PIHOLE_DNS_1: "10.43.0.20"
+  PIHOLE_DNS_2: "10.43.0.20"
+  REV_SERVER: "true"
+  REV_SERVER_CIDR: "192.168.1.0/24"
+  REV_SERVER_TARGET: "192.168.1.1"
+  REV_SERVER_DOMAIN: "example.com"

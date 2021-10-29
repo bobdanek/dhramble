@@ -2,13 +2,13 @@ kind: Service
 apiVersion: v1
 metadata:
   name: pihole-web-service
-  namespace : pihole-test
+  namespace : pihole-2
   annotations:
     metallb.universe.tf/address-pool: default
-    metallb.universe.tf/allow-shared-ip: pihole-test
+    metallb.universe.tf/allow-shared-ip: pihole-2
 spec:
   selector:
-    app: pihole-test
+    app: pihole-2
   ports:
   - protocol: TCP
     port: 80
@@ -21,14 +21,14 @@ kind: Service
 apiVersion: v1
 metadata:
   name: pihole-dns-service
-  namespace: pihole-test
+  namespace: pihole-2
   annotations:
     metallb.universe.tf/address-pool: default
-    metallb.universe.tf/allow-shared-ip: pihole-test
+    metallb.universe.tf/allow-shared-ip: pihole-2
 spec:
   externalTrafficPolicy: Local
   selector:
-    app: pihole-test
+    app: pihole-2
   ports:
   - protocol: UDP
     port: 53
