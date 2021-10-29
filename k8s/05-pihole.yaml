@@ -1,0 +1,171 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  namespace: pihole
+  name: pvc-pihole
+spec:
+  storageClassName: longhorn
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pihole-configmap
+  namespace: pihole
+data:
+  TZ: "America/Los Angeles"
+  ADMIN_EMAIL: "<n+pihole@aux.sh>"
+  DNS1: "10.43.0.20"
+  DNS2: "10.43.0.20"
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: pihole
+  namespace: pihole
+  labels:
+    app: pihole
+spec:
+  serviceName: "pihole"
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: pihole
+  template:
+    metadata:
+      labels:
+        app: pihole
+    spec:
+      containers:
+      - name: pihole
+        image: docker.io/pihole/pihole:latest
+        envFrom:
+        - configMapRef:
+            name: pihole-configmap 
+        - secretRef:
+            name: pihole-secret
+        ports:
+        - name: svc-53-udp
+          containerPort: 53
+          protocol: UDP
+        - name: svc-53-tcp
+          containerPort: 53
+          protocol: TCP
+        - name: svc-ui-http
+          containerPort: 80
+          protocol: TCP
+        resources:
+          limits:
+            memory: "2000Mi"
+            cpu: "1000m"
+          requests:
+            memory: "1000Mi"
+            cpu: "1000m"
+        volumeMounts:
+        - mountPath: /etc/pihole
+          name: pihole-etc
+      volumes:
+        - name: pihole-etc
+          persistentVolumeClaim:
+            claimName: pvc-pihole
+---
+kind: Service 
+apiVersion: v1 
+metadata:
+  name: pihole-ui-svc
+  namespace: pihole
+spec:
+  selector:
+    app: pihole
+  type: ClusterIP
+  ports:
+    - name: 80-tcp
+      port: 80
+      targetPort: 80
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pihole-web-tcp
+  namespace: pihole
+  annotations:
+    metallb.universe.tf/address-pool: default
+    metallb.universe.tf/allow-shared-ip: pihole-svc
+spec:
+  selector:
+    app: pihole
+  ports:
+    - name: 80-tcp
+      port: 80
+      targetPort: 80
+      protocol: TCP
+  externalTrafficPolicy: Local
+  type: LoadBalancer
+  loadBalancerIP: 192.168.1.20
+---
+kind: Service 
+apiVersion: v1 
+metadata:
+  name: pihole-dns-svc 
+  namespace: pihole
+spec:
+  selector:
+    app: pihole
+  type: ClusterIP
+  clusterIP: 10.43.0.30
+  ports:
+    - name: 53-tcp
+      port: 53
+      targetPort: 53
+      protocol: TCP
+    - name: 53-udp
+      port: 53
+      targetPort: 53
+      protocol: UDP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pihole-dns-udp
+  namespace: pihole
+  annotations:
+    metallb.universe.tf/address-pool: default
+    metallb.universe.tf/allow-shared-ip: pihole-svc
+spec:
+  selector:
+    app: pihole
+  ports:
+    - name: 53-udp
+      port: 53
+      targetPort: 53
+      protocol: UDP
+  externalTrafficPolicy: Local
+  type: LoadBalancer
+  loadBalancerIP: 192.168.1.20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pihole-dns-tcp
+  namespace: pihole
+  annotations:
+    metallb.universe.tf/address-pool: default
+    metallb.universe.tf/allow-shared-ip: pihole-svc
+spec:
+  selector:
+    app: pihole
+  ports:
+    - name: 53-tcp
+      port: 53
+      targetPort: 53
+      protocol: TCP
+  externalTrafficPolicy: Local
+  type: LoadBalancer
+  loadBalancerIP: 192.168.1.20
