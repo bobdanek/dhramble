@@ -1,0 +1,21 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: pihole1
+  namespace: kube-prometheus-stack
+  labels:
+    app: prometheus-operator-alertmanager
+
+    chart: prometheus-operator-6.18.0
+    release: "prometheus-operator"
+    heritage: "Tiller"
+spec:
+  selector:
+    matchLabels:
+      k8s-app: pihole-exporter
+  namespaceSelector:
+    matchNames:
+      - "pihole"
+  endpoints:
+  - port: exporter-port
+    path: "/metrics"
