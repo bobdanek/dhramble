@@ -19,21 +19,26 @@ metadata:
 data:
   TZ: "America/Los Angeles"
   ADMIN_EMAIL: "<n+pihole@aux.sh>"
-  DNS1: "10.43.0.20"
-  DNS2: "10.43.0.20"
+  DNS1: "127.0.0.1#5053"
+  DNS2: "127.0.0.1#5053"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: pihole-secret
+  namespace: pihole
+data:
+  WEBPASSWORD: cGlob2xlCg==
 ---
 apiVersion: apps/v1
-kind: StatefulSet
+kind: Deployment
 metadata:
   name: pihole
   namespace: pihole
   labels:
     app: pihole
 spec:
-  serviceName: "pihole"
   replicas: 1
-  updateStrategy:
-    type: RollingUpdate
   selector:
     matchLabels:
       app: pihole
@@ -44,7 +49,7 @@ spec:
     spec:
       containers:
       - name: pihole
-        image: docker.io/pihole/pihole:latest
+        image: docker.io/pihole/pihole:2021.11
         envFrom:
         - configMapRef:
             name: pihole-configmap 
@@ -60,16 +65,73 @@ spec:
         - name: svc-ui-http
           containerPort: 80
           protocol: TCP
+        livenessProbe:
+          httpGet:
+            port: svc-ui
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        readinessProbe:
+          httpGet:
+            port: svc-ui
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          failureThreshold: 10
         resources:
           limits:
-            memory: "2000Mi"
-            cpu: "1000m"
+            memory: "300Mi"
+            cpu: "250m"
           requests:
-            memory: "1000Mi"
-            cpu: "1000m"
+            memory: "50Mi"
+            cpu: "100m"
         volumeMounts:
         - mountPath: /etc/pihole
           name: pihole-etc
+      - name: cloudflare-proxy-dns
+        image: docker.io/cloudflare/cloudflared:2021.12.1
+        args: 
+        - "proxy-dns"
+        - "--address"
+        - "0.0.0.0"
+        - "--port"
+        - "5053"
+        - "--metrics"
+        - "0.0.0.0:8000"
+        - "--max-upstream-conns"
+        - "0"
+        - "--upstream"
+        - "https://1.1.1.1/dns-query"
+        - "--upstream"
+        - "https://1.0.0.1/dns-query"
+        ports:
+        - name: svc-53-udp
+          containerPort: 5053
+          protocol: UDP
+        - name: svc-53-tcp
+          containerPort: 5053
+          protocol: TCP
+        - name: svc-metrics
+          containerPort: 8000
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            port: svc-metrics
+            path: /metrics
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        readinessProbe:
+          httpGet:
+            port: svc-metrics
+            path: /metrics
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          failureThreshold: 10
+        resources:
+          limits:
+            memory: "50Mi"
+            cpu: "100m"
+          requests:
+            memory: "10Mi"
+            cpu: "50m"
       volumes:
         - name: pihole-etc
           persistentVolumeClaim:
@@ -90,8 +152,8 @@ spec:
       targetPort: 80
       protocol: TCP
 ---
-apiVersion: v1
 kind: Service
+apiVersion: v1
 metadata:
   name: pihole-web-tcp
   namespace: pihole
