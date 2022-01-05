@@ -10,9 +10,9 @@ spec:
   tls:
     - secretName: pihole-tls
       hosts:
-        - <pihole.example.com>
+        - pihole.aux.sh
   rules:
-  - host: <pihole.example.com>
+  - host: pihole.aux.sh
     http:
       paths:
       - pathType: Prefix 
