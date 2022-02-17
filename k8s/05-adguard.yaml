@@ -1,0 +1,162 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: adguardhome
+  labels:
+    name: adguardhome
+---
+#! Deployment definition for AdGuard Home for a single instance container,
+#! storing configuration data on a persistent volume claim.
+#! The management web interface on port 3000 and the DNS port 53
+#! are be made accessible via Kubernetes service definition, see further below.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: adguardhome
+  namespace: adguardhome
+  labels:
+    app: adguardhome
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 0
+  selector:
+    matchLabels:
+      app: adguardhome
+  template:
+    metadata:
+      labels:
+        app: adguardhome
+    spec:
+      containers:
+      - name: adguardhome
+        image: adguard/adguardhome:v0.106.3
+        securityContext:
+          privileged: false
+          allowPrivilegeEscalation: false
+        ports:
+        - containerPort: 3000
+          protocol: TCP
+        - containerPort: 53
+          protocol: UDP
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "200m"
+          limits:
+            memory: "256Mi"
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3000
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+        volumeMounts:
+        - name: adguardhome-config
+          mountPath: /opt/adguardhome/conf
+        - name: adguardhome-logs
+          mountPath: /opt/adguardhome/work
+      volumes:
+      - name: adguardhome-config
+        persistentVolumeClaim:
+          claimName: adguardhome
+      - name: adguardhome-logs
+        emptyDir: {}
+
+---
+#! Persistent volume claim to store all AdGuard Home configuration data
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: adguardhome
+  namespace: adguardhome
+  labels:
+    app: adguardhome
+spec:
+  storageClassName: longhorn
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+
+---
+#! Service definition for the AdGuard Home web interface
+apiVersion: v1
+kind: Service
+metadata:
+  name: adguardhome-web
+  namespace: adguardhome
+  labels:
+    app: adguardhome-web
+spec:
+  type: ClusterIP
+  selector:
+    app: adguardhome
+  ports:
+  - port: 3000
+    targetPort: 3000
+    protocol: TCP
+    name: adguardhome-web
+
+---
+#! Service definition for the AdGuard Home DNS port
+apiVersion: v1
+kind: Service
+metadata:
+  name: adguardhome-dns
+  namespace: adguardhome
+  labels:
+    app: adguardhome-dns
+  annotations:
+    metallb.universe.tf/address-pool: default
+    metallb.universe.tf/allow-shared-ip: adguardhome
+spec:
+  type: LoadBalancer
+  selector:
+    app: adguardhome
+  ports:
+  - port: 53
+    targetPort: 53
+    protocol: UDP
+  loadBalancerIP: 192.168.1.23
+
+
+---
+#! Ingress resource, used for HTTP(S) access to the AdGuard Home web interface via Kubernetes ingress-controller
+#! https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: adguardhome
+  namespace: adguardhome
+  labels:
+    app: adguardhome
+  annotations:
+    #! Modify "kubernetes.io/ingress.class" to match your ingress-controller
+    kubernetes.io/ingress.class: "traefik"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  tls:
+  - hosts:
+    #! Configure the hostname for the AdGuard Home web interface
+    - adguard.aux.sh
+    secretName: adguardhome-tls
+  rules:
+  #! Configure the hostname for the AdGuard Home web interface
+  - host: adguard.aux.sh
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: adguardhome-web
+            port:
+              number: 3000

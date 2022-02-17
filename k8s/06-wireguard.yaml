@@ -1,7 +1,14 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: wireguard
+  labels:
+    name: wireguard
+---
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
-  namespace: pihole
+  namespace: wireguard
   name: pvc-wireguard
 spec:
   storageClassName: longhorn
@@ -15,7 +22,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: wireguard-configmap
-  namespace: pihole
+  namespace: wireguard
 data:
   PUID: "1000"
   PGID: "1000"
@@ -23,7 +30,7 @@ data:
   SERVERPORT: "51820"
   SERVERURL: "dholenamicdns.aux.sh"
   PEERS: "5"
-  PEERDNS: "10.43.0.30"
+  PEERDNS: "10.43.0.10"
   ALLOWEDIPS: "0.0.0.0/0, ::/0"
   INTERNAL_SUBNET: "10.13.13.0"
 ---
@@ -31,7 +38,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: wireguard
-  namespace: pihole
+  namespace: wireguard
   labels:
     app: wireguard
 spec:
@@ -85,7 +92,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: wireguard-svc
-  namespace: pihole
+  namespace: wireguard
   annotations:
     metallb.universe.tf/address-pool: default
     metallb.universe.tf/allow-shared-ip: wireguard-svc

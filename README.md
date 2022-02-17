@@ -15,14 +15,9 @@ Extremely WIP.
   * probably some other things
 4. `kubectl apply -f k8s/`
   * you may need to run this a few times if stuff doesn't come up before other stuff needs to come up first
-5. `kubectl apply -f pihole-secondary`
-6. Wait for stuff to come up. I like to watch [🐺 k9s 🐺 ](https://k9scli.io/)
-7. Get the IP for the primary pihole:
-  * kubectl describe service -n pihole pihole-dns-udp | grep Ingress
-7. Get the IP for the secondary pihole:
-  * kubectl describe service -n pihole-2 pihole-dns-service | grep Ingress
+5. Wait for stuff to come up. I like to watch [🐺 k9s 🐺 ](https://k9scli.io/)
 
-Enjoy! Make config changes for the secondary pihole in 01-private.yaml and 02-configmaps.yaml
+Enjoy!
 
 TODO: lots, like https
 
