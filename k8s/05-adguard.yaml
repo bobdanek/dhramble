@@ -67,7 +67,6 @@ spec:
           claimName: adguardhome
       - name: adguardhome-logs
         emptyDir: {}
-
 ---
 #! Persistent volume claim to store all AdGuard Home configuration data
 apiVersion: v1
@@ -84,7 +83,6 @@ spec:
   resources:
     requests:
       storage: 2Gi
-
 ---
 #! Service definition for the AdGuard Home web interface
 apiVersion: v1
@@ -103,13 +101,12 @@ spec:
     targetPort: 3000
     protocol: TCP
     name: adguardhome-web
-
 ---
 #! Service definition for the AdGuard Home DNS port
 apiVersion: v1
 kind: Service
 metadata:
-  name: adguardhome-dns
+  name: adguardhome-dns-udp
   namespace: adguardhome
   labels:
     app: adguardhome-dns
@@ -125,8 +122,29 @@ spec:
     targetPort: 53
     protocol: UDP
   loadBalancerIP: 192.168.1.23
-
-
+  externalTrafficPolicy: Cluster
+---
+#! Service definition for the AdGuard Home DNS port
+apiVersion: v1
+kind: Service
+metadata:
+  name: adguardhome-dns-tcp
+  namespace: adguardhome
+  labels:
+    app: adguardhome-dns
+  annotations:
+    metallb.universe.tf/address-pool: default
+    metallb.universe.tf/allow-shared-ip: adguardhome
+spec:
+  type: LoadBalancer
+  selector:
+    app: adguardhome
+  ports:
+  - port: 53
+    targetPort: 53
+    protocol: TCP
+  loadBalancerIP: 192.168.1.23
+  externalTrafficPolicy: Cluster
 ---
 #! Ingress resource, used for HTTP(S) access to the AdGuard Home web interface via Kubernetes ingress-controller
 #! https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/
